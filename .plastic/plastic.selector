@@ -1,0 +1,3 @@
+repository "MagicPunch/MagicPunch@10170844450821@cloud"
+  path "/"
+    smartbranch "/main/kirov-develop"
