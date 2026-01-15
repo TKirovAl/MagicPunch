@@ -28,9 +28,9 @@ public class CharacterUnit : MonoBehaviour
     [SerializeField] private float movementSpeed = 5f;
     
     [Header("Магия")]
-    [SerializeField] private MagicType magicType;
-    [SerializeField] private float castDelay = 1f;
-    [SerializeField] private float currentCastTimer = 0f;
+    [SerializeField] private float maxEnergy = 100f;
+    [SerializeField] private float currentEnergy;
+    [SerializeField] private float energyRegeneration = 5f;
     
     [Header("Обзор")]
     [SerializeField] private float visionRange = 10f;
@@ -54,6 +54,9 @@ public class CharacterUnit : MonoBehaviour
     public float MovementSpeed => movementSpeed;
     public MagicType MagicType => magicType;
     public bool CanCast => currentCastTimer <= 0 && currentEnergy >= magicType.manaCost;
+    private MagicManager magicManager;
+    private bool isCasting = false;
+    private float castTimer = 0f;
     
     // Компоненты
     private Rigidbody rb;
@@ -68,11 +71,34 @@ public class CharacterUnit : MonoBehaviour
         currentHealth = maxHealth;
         currentEnergy = maxEnergy;
     }
-    
-    private void Update()
+
+    void Start()
     {
-        UpdateTimers();
-        RegenerateResources();
+        // Инициализация энергии
+        currentEnergy = maxEnergy;
+        
+        // Получаем менеджер магии
+        magicManager = GetComponent<MagicManager>();
+        if (magicManager == null)
+        {
+            magicManager = gameObject.AddComponent<MagicManager>();
+        }
+    }
+    
+     void Update()
+    {
+        // Регенерация энергии
+        RegenerateEnergy();
+        
+        // Обновление таймера каста
+        if (isCasting)
+        {
+            castTimer -= Time.deltaTime;
+            if (castTimer <= 0)
+            {
+                isCasting = false;
+            }
+        }
     }
     
     private void UpdateTimers()
@@ -83,7 +109,7 @@ public class CharacterUnit : MonoBehaviour
         }
     }
     
-    private void RegenerateResources()
+    private void RegenerateHealth()
     {
         // Регенерация здоровья
         if (currentHealth < maxHealth)
@@ -92,10 +118,13 @@ public class CharacterUnit : MonoBehaviour
             currentHealth = Mathf.Min(currentHealth, maxHealth);
         }
         
-        // Регенерация энергии
+    }
+
+    void RegenerateEnergy()
+    {
         if (currentEnergy < maxEnergy)
         {
-            currentEnergy += energyRegenerationRate * Time.deltaTime;
+            currentEnergy += energyRegeneration * Time.deltaTime;
             currentEnergy = Mathf.Min(currentEnergy, maxEnergy);
         }
     }
@@ -147,6 +176,35 @@ public class CharacterUnit : MonoBehaviour
         Debug.Log($"Кастуется {magicType.magicName}!");
         
         return true;
+    }
+
+       public bool ConsumeEnergy(float amount)
+    {
+        if (currentEnergy >= amount)
+        {
+            currentEnergy -= amount;
+            return true;
+        }
+        return false;
+    }
+
+    public void RestoreEnergy(float amount)
+    {
+        currentEnergy += amount;
+        currentEnergy = Mathf.Min(currentEnergy, maxEnergy);
+    }
+
+     public void TriggerCastAnimation(float castTime)
+    {
+        isCasting = true;
+        castTimer = castTime;
+        
+        // Здесь можно запустить анимацию каста
+        if (animator != null)
+        {
+            animator.SetTrigger("Cast");
+            animator.SetFloat("CastSpeed", 1f / castTime);
+        }
     }
     
     // Метод движения
@@ -213,5 +271,15 @@ public class CharacterUnit : MonoBehaviour
         Gizmos.color = Color.cyan;
         Gizmos.DrawRay(transform.position, leftDirection * visionRange);
         Gizmos.DrawRay(transform.position, rightDirection * visionRange);
+    }
+
+    public void ModifyEnergyRegeneration(float multiplier)
+    {
+        energyRegeneration *= multiplier;
+    }
+    
+    public void IncreaseMaxEnergy(float amount)
+    {
+        maxEnergy += amount;
     }
 }
